@@ -40,3 +40,6 @@ datasets/
 
 # VS code
 .vscode
+
+# logs
+logs/
