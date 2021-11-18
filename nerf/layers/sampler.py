@@ -18,18 +18,23 @@ def sample_pdf(upper, lower, weights, num_samples_fine):
     cdf = torch.cumsum(pdf, dim=-1)
 
     # Take uniform samples
-    u = torch.random.uniform([*cdf.shape[:-1], num_samples_fine])
+    u = torch.rand([*cdf.shape[:-1], num_samples_fine])
 
     # Inverse transform sampling
     inds = torch.searchsorted(cdf, u)
     
+    # Gather
+    pdf_g = torch.gather(pdf, -1, inds)
+    cdf_g = torch.gather(cdf, -1, inds)
+    lower_g = torch.gather(lower, -1, inds)
+    upper_g = torch.gather(upper, -1, inds)
+
     # Get sample points
-    t = 1. - (cdf[inds] - u) / pdf[inds]
-    samples = lower[inds] + (upper[inds] - lower[inds]) * t
+    t = 1. - (cdf_g - u) / pdf_g
+    samples = lower_g + (upper_g - lower_g) * t
     
     return samples
     
-
 
 def point_sampling(rays, num_samples):
     # TODO: a little different from origin implementation, check it
@@ -49,8 +54,9 @@ def point_sampling(rays, num_samples):
     # Extract ray origin, direction.
     rays_o, rays_d = rays[:, 0:3], rays[:, 3:6]
     # Extract lower, upper bound for ray distance.
-    bounds = rays[..., 6:8].view([-1, 1, 2])
-    near, far = bounds[..., 0], bounds[..., 1]
+    # bounds = rays[..., 6:8].view([-1, 1, 2])
+    # near, far = bounds[..., 0], bounds[..., 1]
+    near, far = rays[..., 6], rays[..., 7]
     
     # sample points
     # split the ray into N intervals
@@ -59,7 +65,7 @@ def point_sampling(rays, num_samples):
                   far[:, None] * breakpoints[None, :]
     upper, lower = breakpoints[..., 1:], breakpoints[..., :-1]
     # sampling in each interval
-    rand = torch.random.uniform(upper.shape)
+    rand = torch.rand(upper.shape)
     t_ray = lower + (upper - lower) * rand
 
     points = rays_o[..., None, :] + rays_d[..., None, :] * \
