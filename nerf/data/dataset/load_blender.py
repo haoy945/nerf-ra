@@ -86,3 +86,9 @@ def load_blender_data(basedir, half_res=False, testskip=1):
         imgs = imgs_half_res
         
     return imgs, poses, render_poses, [H, W, focal], i_split
+
+
+if __name__ == "__main__":
+    basedir = "/home/yanghao/data/NeRF/nerf_synthetic/lego"
+    imgs, poses, render_poses, [H, W, focal], i_split = load_blender_data(basedir, half_res=False, testskip=1)
+    print("Finish.")
