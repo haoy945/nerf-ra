@@ -1,10 +1,14 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
-from nerf.modeling.network import nerf_mlp
+from ..network import build_nerf_mlp
+from ...layers import (
+    build_embedder,
+    build_render,
+    build_sampler,
+)
 
-from ..network import NerfMlp
-from ...layers import point_sampling
+__all__ = ["NeRF", "build_meta_arch", ]
 
 
 class NeRF(nn.Module):
@@ -22,7 +26,7 @@ class NeRF(nn.Module):
     """
 
     def __init__(self, nerf_mlp, embedder, points_sampler, render, 
-                 num_samples, num_samples_fine, *args, nerf_mlp_fine=None):
+                 num_samples, num_samples_fine, nerf_mlp_fine=None):
         super().__init__()
         self.nerf_mlp = nerf_mlp
         self.nerf_mlp_fine = nerf_mlp_fine
@@ -51,10 +55,10 @@ class NeRF(nn.Module):
         losses.update(losses_coarse)
 
         # fine stage 
-        if not self.nerf_mlp_fine:
+        if self.nerf_mlp_fine:
             points_fine = point_sampling_fine(weights, self.num_samples_fine)
 
-            losses_fine = self._forward(
+            losses_fine, _ = self._forward(
                 points_fine, batched_rays, batched_targets, use_viewdirs, coarse_stage=False)
             losses.update(losses_fine)
 
@@ -68,23 +72,42 @@ class NeRF(nn.Module):
         else:
             viewdirs = None
 
+        if coarse_stage:
+            mlp = self.nerf_mlp
+            loss_name = "loss_coarse"
+        else:
+            mlp = self.nerf_mlp_fine
+            loss_name = "loss_fine"
+
         # embedding
         pos_embed, dir_embed = self.embedder(pts, viewdirs)
         # running network
-        outputs = self.nerf_mlp(pos_embed, dir_embed)
+        outputs = mlp(pos_embed, dir_embed)
         # rendering
         rgb, weights = self.render(outputs, pts, output_weight=coarse_stage)
-
         # caculate loss
-        if coarse_stage:
-            losses = {"loss_coarse": self.loss(rgb, batched_targets)}
-            return losses, weights
-        else:
-            losses = {"loss_fine": self.loss(rgb, batched_targets)}
-            return losses
+        losses = {loss_name: self.loss(rgb, batched_targets)}
+        
+        return losses, weights
 
     def inference(self):
         assert not self.training
 
     def loss(self, preds, targets):
         return F.mse_loss(preds, targets, reduction='mean')
+
+
+def build_meta_arch(cfg):
+    nerf_mlp = build_nerf_mlp(cfg)
+    embedder = build_embedder(cfg)
+    points_sampler = build_sampler(cfg)
+    render = build_render(cfg)
+
+    num_samples = cfg.MODEL.NUM_SAMPLES
+    num_samples_fine = cfg.MODEL.NUM_SAMPLES_FINE
+
+    nerf_mlp_fine = build_nerf_mlp(cfg) if num_samples_fine > 0 else None
+
+    model = NeRF(nerf_mlp, embedder, points_sampler, render, num_samples, 
+                 num_samples_fine, nerf_mlp_fine)
+    return model

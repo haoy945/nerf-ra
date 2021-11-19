@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from ...layers import Linear
 
-__all__ = ["NerfMlp", ]
+__all__ = ["build_nerf_mlp", ]
 
 
 class NerfMlp(nn.Module):
@@ -12,7 +12,8 @@ class NerfMlp(nn.Module):
     Given position and direction, output color and sigma.
     """
 
-    def __init__(self, num_layers, skips, position_dim, direction_dim, middle_dim, use_viewdirs) -> None:
+    def __init__(self, num_layers, skips, position_dim, direction_dim, 
+                 middle_dim, use_viewdirs) -> None:
         super().__init__()
         self.skips = skips
         self.use_viewdirs = use_viewdirs
@@ -82,4 +83,15 @@ class NerfMlp(nn.Module):
 
         return output
 
-        return color, sigma
+
+def build_nerf_mlp(cfg):
+    num_layers = cfg.MODEL.MLP.NUM_LAYERS
+    skips = cfg.MODEL.MLP.SKIPS
+    position_dim = cfg.MODEL.MLP.POSITION_DIM
+    direction_dim = cfg.MODEL.MLP.DIRECTION_DIM
+    middle_dim = cfg.MODEL.MLP.MIDDEL_DIM
+    use_viewdirs = cfg.MODEL.MLP.USE_VIEWDIRS
+
+    nerfmlp = NerfMlp(num_layers, skips, position_dim, direction_dim, 
+                      middle_dim, use_viewdirs)
+    return nerfmlp

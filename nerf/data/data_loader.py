@@ -4,6 +4,8 @@ import numpy as np
 from ..utils import get_rays
 from .data_sampler import TrainingSampler
 
+__all__ = ["DataLoaderTrain", ]
+
 
 class DataLoaderTrain:
     def __init__(self, images, poses, hwf, near, far, use_pixel_batching, ues_viewdirs, batch_size, sampler=None) -> None:

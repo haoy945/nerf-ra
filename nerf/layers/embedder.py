@@ -3,6 +3,8 @@ import math
 import torch
 import torch.nn as nn
 
+__all__ = ["build_embedder", ]
+
 
 def embedding(x, L):
     if x is None:
@@ -24,4 +26,11 @@ class Embedder(nn.Module):
         dir_embed = embedding(direction, self.dim_dir)
 
         return pos_embed, dir_embed
+
+
+def build_embedder(cfg):
+    dim_position = cfg.MODEL.EMBEDDER.POSITION_DIM
+    dim_direction = cfg.MODEL.EMBEDDER.DIRECTION_DIM
+    embedder = Embedder(dim_position, dim_direction)
+    return embedder
 

@@ -43,3 +43,6 @@ datasets/
 
 # logs
 logs/
+
+# debug
+debug.py

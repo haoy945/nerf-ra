@@ -1,6 +1,6 @@
 import torch
 
-__all__ = ["renderRays", ]
+__all__ = ["build_render", ]
 
 
 def _renderRays(sigma, delta, rgb, output_weight=False):
@@ -28,3 +28,7 @@ def _renderRays(sigma, delta, rgb, output_weight=False):
 
 def renderRays(raw, pts, output_weight=False):
     pass
+
+
+def build_render(cfg):
+    return renderRays
