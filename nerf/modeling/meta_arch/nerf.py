@@ -1,6 +1,10 @@
 import torch.nn as nn
+import torch.nn.functional as F
+
+from nerf.modeling.network import nerf_mlp
 
 from ..network import NerfMlp
+from ...layers import point_sampling
 
 
 class NeRF(nn.Module):
@@ -17,11 +21,70 @@ class NeRF(nn.Module):
     betweenthe rendered and true pixel colors.
     """
 
-    def __init__(self, *args):
+    def __init__(self, nerf_mlp, embedder, points_sampler, render, 
+                 num_samples, num_samples_fine, *args, nerf_mlp_fine=None):
         super().__init__()
+        self.nerf_mlp = nerf_mlp
+        self.nerf_mlp_fine = nerf_mlp_fine
+        self.embedder = embedder
+        self.points_sampler = points_sampler
+        self.render = render
 
-    def forward(self):
-        pass
+        self.num_samples = num_samples
+        self.num_samples_fine = num_samples_fine
+
+    def forward(self, batched_inputs):
+        if not self.training:
+            return self.inference(batched_inputs)
+
+        batched_rays = batched_inputs["batched_rays"]
+        batched_targets = batched_inputs["batched_targets"]
+        losses = {}
+
+        # coarse stage
+        # sampling
+        points, point_sampling_fine = self.points_sampler(batched_rays, self.num_samples)
+        use_viewdirs = batched_rays.shape[-1] > 8
+
+        losses_coarse, weights = self._forward(
+            points, batched_rays, batched_targets, use_viewdirs, coarse_stage=True)
+        losses.update(losses_coarse)
+
+        # fine stage 
+        if not self.nerf_mlp_fine:
+            points_fine = point_sampling_fine(weights, self.num_samples_fine)
+
+            losses_fine = self._forward(
+                points_fine, batched_rays, batched_targets, use_viewdirs, coarse_stage=False)
+            losses.update(losses_fine)
+
+        return losses
+
+    def _forward(self, pts, batched_rays, batched_targets, use_viewdirs, coarse_stage=True):
+        # 
+        if use_viewdirs:
+            viewdirs = batched_rays[:, 8:]
+            viewdirs = viewdirs[:, None].expand(pts.shape)
+        else:
+            viewdirs = None
+
+        # embedding
+        pos_embed, dir_embed = self.embedder(pts, viewdirs)
+        # running network
+        outputs = self.nerf_mlp(pos_embed, dir_embed)
+        # rendering
+        rgb, weights = self.render(outputs, pts, output_weight=coarse_stage)
+
+        # caculate loss
+        if coarse_stage:
+            losses = {"loss_coarse": self.loss(rgb, batched_targets)}
+            return losses, weights
+        else:
+            losses = {"loss_fine": self.loss(rgb, batched_targets)}
+            return losses
 
     def inference(self):
-        pass
+        assert not self.training
+
+    def loss(self, preds, targets):
+        return F.mse_loss(preds, targets, reduction='mean')

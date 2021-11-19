@@ -3,12 +3,12 @@ import torch
 __all__ = ["renderRays", ]
 
 
-def renderRays(sigma, delta, color, output_weight=False):
+def _renderRays(sigma, delta, rgb, output_weight=False):
     """
     Args:
         sigma (tensor): volume density with the shape (num_rays, num_points).
         delta (tensor): distance of each segment with the shape (num_rays, num_points).
-        color (tensor): predicted RGB value of each sampling points with the shape 
+        rgb (tensor): predicted RGB value of each sampling points with the shape 
             (num_rays, num_points, 3).
         output_weight (bool): in 'fine' stage, we need to caculate the weights of each 
             samping points so that we can resample the points. This variable determines
@@ -18,7 +18,7 @@ def renderRays(sigma, delta, color, output_weight=False):
     alpha = 1 - torch.exp(-sigma * delta)
     weight = alpha * torch.cumprod(1 - alpha * 1e-10, dim=-1)
 
-    rgb = torch.sum(weight[..., None] * color, dim=-2)
+    rgb = torch.sum(weight[..., None] * rgb, dim=-2)
     
     if output_weight:
         return rgb, weight
@@ -26,5 +26,5 @@ def renderRays(sigma, delta, color, output_weight=False):
         return rgb, None
 
 
-def render():
+def renderRays(raw, pts, output_weight=False):
     pass

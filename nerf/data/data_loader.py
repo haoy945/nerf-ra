@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 
-from nerf.utils import get_rays
+from ..utils import get_rays
 from .data_sampler import TrainingSampler
 
 
@@ -74,8 +74,8 @@ class DataLoaderTrain:
         rays_o, rays_d, targets = batch[:, 0], batch[:, 1], batch[:, 2]
         rays = self.creat_ray_batch(rays_o, rays_d)
         return {
-            "batch_rays": rays,
-            "batch_targets": targets,
+            "batched_rays": rays,
+            "batched_targets": targets,
         }
 
     def creat_ray_batch(self, rays_o, rays_d):

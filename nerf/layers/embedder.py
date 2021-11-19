@@ -5,6 +5,9 @@ import torch.nn as nn
 
 
 def embedding(x, L):
+    if x is None:
+        return None
+
     freq = 2 ** torch.arange(L) * math.pi
     freq = x[..., None] * freq
     return torch.cat((freq.sin(), freq.cos()), dim=-1).flatten(x.dim() - 1)
