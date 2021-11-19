@@ -26,7 +26,7 @@ class NeRF(nn.Module):
     """
 
     def __init__(self, nerf_mlp, embedder, points_sampler, render, 
-                 num_samples, num_samples_fine, nerf_mlp_fine=None):
+                 num_samples, num_samples_fine, nerf_mlp_fine=None, raw_noise_std=0.):
         super().__init__()
         self.nerf_mlp = nerf_mlp
         self.nerf_mlp_fine = nerf_mlp_fine
@@ -36,6 +36,7 @@ class NeRF(nn.Module):
 
         self.num_samples = num_samples
         self.num_samples_fine = num_samples_fine
+        self.raw_noise_std = raw_noise_std
 
     def forward(self, batched_inputs):
         if not self.training:
@@ -43,12 +44,12 @@ class NeRF(nn.Module):
 
         batched_rays = batched_inputs["batched_rays"]
         batched_targets = batched_inputs["batched_targets"]
+        use_viewdirs = batched_rays.shape[-1] > 8
         losses = {}
 
         # coarse stage
         # sampling
         points, point_sampling_fine = self.points_sampler(batched_rays, self.num_samples)
-        use_viewdirs = batched_rays.shape[-1] > 8
 
         losses_coarse, weights = self._forward(
             points, batched_rays, batched_targets, use_viewdirs, coarse_stage=True)
@@ -84,10 +85,11 @@ class NeRF(nn.Module):
         # running network
         outputs = mlp(pos_embed, dir_embed)
         # rendering
-        rgb, weights = self.render(outputs, pts, output_weight=coarse_stage)
+        rgb, weights = self.render(outputs, pts, output_weight=coarse_stage, 
+            raw_noise_std=self.raw_noise_std)
         # caculate loss
         losses = {loss_name: self.loss(rgb, batched_targets)}
-        
+
         return losses, weights
 
     def inference(self):
@@ -105,9 +107,10 @@ def build_meta_arch(cfg):
 
     num_samples = cfg.MODEL.NUM_SAMPLES
     num_samples_fine = cfg.MODEL.NUM_SAMPLES_FINE
+    raw_noise_std = cfg.MODEL.RENDER.RAW_NOISE_STD
 
     nerf_mlp_fine = build_nerf_mlp(cfg) if num_samples_fine > 0 else None
 
     model = NeRF(nerf_mlp, embedder, points_sampler, render, num_samples, 
-                 num_samples_fine, nerf_mlp_fine)
+                 num_samples_fine, nerf_mlp_fine, raw_noise_std)
     return model

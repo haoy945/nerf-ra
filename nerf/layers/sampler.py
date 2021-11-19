@@ -1,6 +1,6 @@
 import torch
 
-__all__ = ["point_sampling", ]
+__all__ = ["build_sampler", ]
 
 
 def sample_pdf(upper, lower, weights, num_samples_fine):

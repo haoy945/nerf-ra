@@ -48,7 +48,7 @@ class NerfMlp(nn.Module):
             position (tensor): position embedding sized [bs, num_samples, position_dim].
             direction (tensor): direction embedding sized [bs, num_samples, direction_dim].
         """
-        assert position.dim == 3
+        assert position.dim() == 3
         
         bs, num_samples, pos_dim = position.shape
         position = position.reshape([-1, pos_dim])
