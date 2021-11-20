@@ -90,7 +90,7 @@ def build_nerf_mlp(cfg):
     position_dim = cfg.MODEL.MLP.POSITION_DIM
     direction_dim = cfg.MODEL.MLP.DIRECTION_DIM
     middle_dim = cfg.MODEL.MLP.MIDDEL_DIM
-    use_viewdirs = cfg.MODEL.MLP.USE_VIEWDIRS
+    use_viewdirs = cfg.DATASET.USE_VIEWDIRS
 
     nerfmlp = NerfMlp(num_layers, skips, position_dim, direction_dim, 
                       middle_dim, use_viewdirs)
