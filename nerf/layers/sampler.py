@@ -90,3 +90,9 @@ def point_sampling(rays, num_samples):
         return points_fine
 
     return points, point_sampling_fine
+
+
+def build_sampler(cfg):
+    return point_sampling
+
+

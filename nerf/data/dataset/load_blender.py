@@ -6,7 +6,7 @@ import torch
 import numpy as np
 import imageio 
 
-__all__ = ["load_blender_data", ]
+__all__ = ["load_blender_data", "build_blender_data", ]
 
 trans_t = lambda t : torch.Tensor([
     [1,0,0,0],
@@ -88,7 +88,6 @@ def load_blender_data(basedir, half_res=False, testskip=1):
     return imgs, poses, render_poses, [H, W, focal], i_split
 
 
-if __name__ == "__main__":
-    basedir = "/home/yanghao/data/NeRF/nerf_synthetic/lego"
-    imgs, poses, render_poses, [H, W, focal], i_split = load_blender_data(basedir, half_res=False, testskip=1)
-    print("Finish.")
+def build_blender_data(cfg):
+
+    return None
