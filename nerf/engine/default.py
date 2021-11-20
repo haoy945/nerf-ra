@@ -32,6 +32,7 @@ class DefaultTrainer:
         self.optimizer.zero_grad()
         losses.backward()
         self.optimizer.step()
+        self.scheduler.step()
 
     @classmethod
     def build_model(self, cfg):
