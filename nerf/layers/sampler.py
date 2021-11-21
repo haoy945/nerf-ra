@@ -83,8 +83,9 @@ def point_sampling(rays, num_samples):
         """
         # sample points based on weights
         t_ray_fine = sample_pdf(upper, lower, weights, num_samples_fine)
+        t_ray_fine = t_ray_fine.detach()
         # add the newly samples to the original sample collection
-        t_ray_fine = torch.sort(torch.cat([t_ray, t_ray_fine], dim=-1), dim=-1)
+        t_ray_fine, _ = torch.sort(torch.cat([t_ray, t_ray_fine], dim=-1), dim=-1)
         points_fine = rays_o[..., None, :] + rays_d[..., None, :] * \
             t_ray_fine[..., :, None]
         return points_fine
@@ -94,5 +95,3 @@ def point_sampling(rays, num_samples):
 
 def build_sampler(cfg):
     return point_sampling
-
-

@@ -33,4 +33,3 @@ def build_embedder(cfg):
     dim_direction = cfg.MODEL.EMBEDDER.DIRECTION_DIM
     embedder = Embedder(dim_position, dim_direction)
     return embedder
-

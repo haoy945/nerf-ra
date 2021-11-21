@@ -46,3 +46,4 @@ logs/
 
 # debug
 debug.py
+debug.yaml

@@ -17,11 +17,11 @@ def _renderRays(sigma, dists, rgb, output_weight=False):
     assert sigma.shape == dists.shape
     alpha = 1. - torch.exp(-sigma * dists)
     weight = alpha * torch.cumprod(
-        1. - torch.cat([torch.zeros_like(alpha[:, :1]), alpha[:, :-1]], dim=-1) + 1e-10, 
+        torch.cat([torch.ones((alpha.shape[0], 1)), 1. - alpha[:, :-1] + 1e-10], dim=-1), 
         dim=-1
     )
 
-    rgb = torch.sum(weight[..., None] * rgb, dim=-2)
+    rgb = torch.sum(weight[..., None].clone() * rgb, dim=-2)
     
     if output_weight:
         return rgb, weight

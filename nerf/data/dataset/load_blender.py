@@ -41,7 +41,7 @@ def load_blender_data(basedir, mode='train', half_res=False, skip=1, white_bkgd=
     
     imgs = []
     poses = []
-    for frame in meta['frame'][::skip]:
+    for frame in meta['frames'][::skip]:
         fname = os.path.join(basedir, frame['file_path'] + '.png')
         imgs.append(imageio.imread(fname))
         poses.append(np.array(frame['transform_matrix']))
@@ -70,7 +70,7 @@ def load_blender_data(basedir, mode='train', half_res=False, skip=1, white_bkgd=
     near = 2.
     far = 6.
 
-    return imgs, poses, [H, W, focal], near, far    
+    return torch.tensor(imgs), torch.tensor(poses), [H, W, focal], near, far    
 
 
 def build_blender_data(cfg):
