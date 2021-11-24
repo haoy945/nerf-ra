@@ -29,6 +29,8 @@ class EventWriter:
         Add multiple values to the buffer. 
         """
         metrics_dict = {k: v.detach().cpu().item() for k, v in loss.items()}
+        if "total_loss" not in metrics_dict:
+            metrics_dict['total_loss'] = sum(metrics_dict.values())
         metrics_dict["data_time"] = data_time
         metrics_dict["total_time"] = total_time
         metrics_dict["lr"] = lr
