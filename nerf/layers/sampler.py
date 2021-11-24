@@ -1,4 +1,5 @@
 import torch
+import logging
 
 __all__ = ["build_sampler", ]
 
@@ -24,6 +25,7 @@ def sample_pdf(upper, lower, weights, num_samples_fine):
 
     # Inverse transform sampling
     inds = torch.searchsorted(cdf, u)
+    inds = inds.clip(0, cdf.shape[-1] - 1)
     
     # Gather
     pdf_g = torch.gather(pdf, -1, inds)
