@@ -17,7 +17,9 @@ def _renderRays(sigma, dists, rgb, output_weight=False):
     assert sigma.shape == dists.shape
     alpha = 1. - torch.exp(-sigma * dists)
     weight = alpha * torch.cumprod(
-        torch.cat([torch.ones((alpha.shape[0], 1)), 1. - alpha[:, :-1] + 1e-10], dim=-1), 
+        torch.cat([
+            torch.ones((alpha.shape[0], 1), device=alpha.device), 1. - alpha[:, :-1] + 1e-10
+        ], dim=-1), 
         dim=-1
     )
 
@@ -45,11 +47,12 @@ def renderRays(raw, pts, output_weight=False, raw_noise_std=0.):
     dists = dists.norm(dim=-1)
     # The 'distance' from the last integration time is infinity.
     dists = torch.cat([dists, torch.tensor([1e10]).expand(dists[:, :1].shape)], dim=-1)
+    dists = dists.to(raw.device)
 
     # Extract RGB and Sigma of each sample position along each ray.
     rgb, sigma = raw[..., :3], raw[..., 3]
     rgb = torch.sigmoid(rgb)
-    noise = torch.rand_like(sigma) * raw_noise_std
+    noise = torch.rand_like(sigma, device=sigma.device) * raw_noise_std
     sigma = torch.nn.functional.relu(sigma + noise)
 
     return _renderRays(sigma, dists, rgb, output_weight)

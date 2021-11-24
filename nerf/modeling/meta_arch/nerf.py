@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -26,7 +27,8 @@ class NeRF(nn.Module):
     """
 
     def __init__(self, nerf_mlp, embedder, points_sampler, render, 
-                 num_samples, num_samples_fine, nerf_mlp_fine=None, raw_noise_std=0.):
+                 num_samples, num_samples_fine, nerf_mlp_fine=None, raw_noise_std=0.,
+                 device='cuda',):
         super().__init__()
         self.nerf_mlp = nerf_mlp
         self.nerf_mlp_fine = nerf_mlp_fine
@@ -37,13 +39,18 @@ class NeRF(nn.Module):
         self.num_samples = num_samples
         self.num_samples_fine = num_samples_fine
         self.raw_noise_std = raw_noise_std
+        self._device = device
+
+    @property
+    def device(self):
+        return self._device
 
     def forward(self, batched_inputs):
         if not self.training:
             return self.inference(batched_inputs)
 
         batched_rays = batched_inputs["batched_rays"]
-        batched_targets = batched_inputs["batched_targets"]
+        batched_targets = batched_inputs["batched_targets"].to(self.device)
         use_viewdirs = batched_rays.shape[-1] > 8
         losses = {}
 
@@ -81,7 +88,7 @@ class NeRF(nn.Module):
             loss_name = "loss_fine"
 
         # embedding
-        pos_embed, dir_embed = self.embedder(pts, viewdirs)
+        pos_embed, dir_embed = self.embedder(pts.to(self.device), viewdirs.to(self.device))
         # running network
         outputs = mlp(pos_embed, dir_embed)
         # rendering
@@ -113,4 +120,5 @@ def build_meta_arch(cfg):
 
     model = NeRF(nerf_mlp, embedder, points_sampler, render, num_samples, 
                  num_samples_fine, nerf_mlp_fine, raw_noise_std)
+    model.to(torch.device(cfg.MODEL.DEVICE))
     return model

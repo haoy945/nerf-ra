@@ -82,8 +82,8 @@ def point_sampling(rays, num_samples):
                 in fine stage.
         """
         # sample points based on weights
+        weights = weights.detach().cpu()
         t_ray_fine = sample_pdf(upper, lower, weights, num_samples_fine)
-        t_ray_fine = t_ray_fine.detach()
         # add the newly samples to the original sample collection
         t_ray_fine, _ = torch.sort(torch.cat([t_ray, t_ray_fine], dim=-1), dim=-1)
         points_fine = rays_o[..., None, :] + rays_d[..., None, :] * \
