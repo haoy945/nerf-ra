@@ -4,7 +4,7 @@ import json
 import cv2
 import torch
 import numpy as np
-import imageio 
+import imageio
 
 __all__ = ["load_blender_data", "build_blender_data", ]
 
@@ -35,8 +35,8 @@ def pose_spherical(theta, phi, radius):
     return c2w
 
 
-def load_blender_data(basedir, mode='train', half_res=False, skip=1, white_bkgd=False):
-    with open(os.path.join(basedir, 'transforms_{}.json'.format(mode)), 'r') as fp:
+def load_blender_data(basedir, split='train', half_res=False, skip=1, white_bkgd=False):
+    with open(os.path.join(basedir, 'transforms_{}.json'.format(split)), 'r') as fp:
         meta = json.load(fp)
     
     imgs = []
@@ -70,16 +70,15 @@ def load_blender_data(basedir, mode='train', half_res=False, skip=1, white_bkgd=
     near = 2.
     far = 6.
 
-    return torch.tensor(imgs), torch.tensor(poses), [H, W, focal], near, far    
+    return torch.tensor(imgs, dtype=torch.float32), torch.tensor(poses), [H, W, focal], near, far    
 
 
-def build_blender_data(cfg):
+def build_blender_data(cfg, split):
     data_root = cfg.DATASET.ROOT_PATH
     datadir = cfg.DATASET.DATADIR
     datadir = os.path.join(data_root, datadir)
     half_res = cfg.DATASET.HALF_RES
     skip = cfg.DATASET.SKIP
-    mode = cfg.DATASET.MODE
     white_bkgd = cfg.DATASET.WHITE_BACKGROUND
 
-    return load_blender_data(datadir, mode, half_res, skip, white_bkgd)
+    return load_blender_data(datadir, split, half_res, skip, white_bkgd)

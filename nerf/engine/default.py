@@ -5,9 +5,10 @@ import logging
 from fvcore.common.checkpoint import Checkpointer
 
 from ..modeling import build_meta_arch
-from ..data import build_train_loader
+from ..data import build_train_loader, build_test_loader
 from ..solver import build_optimizer, build_lr_scheduler
 from ..utils import setup_logger, EventWriter
+from ..evaluation import inference
 
 __all__ = ["default_setup", "DefaultTrainer", ]
 
@@ -109,6 +110,8 @@ class DefaultTrainer:
             if (self.iter + 1) % self.cfg.SOLVER.CHECKPOINT_PERIOD == 0 or (self.iter + 1) == self.max_iter:
                 save_file_name = "model_{}".format(self.iter)
                 self.checkpointer.save(save_file_name)
+            if (self.iter + 1) % self.cfg.TEST.EVAL_PERIOD == 0 or (self.iter + 1) == self.max_iter:
+                self.test(self.cfg, self.model)
 
     def run_step(self):
         start = time.perf_counter()
@@ -155,6 +158,14 @@ class DefaultTrainer:
         return build_train_loader(cfg)
 
     @classmethod
+    def build_test_loader(cls, cfg):
+        """
+        Returns:
+            iterable
+        """
+        return build_test_loader(cfg)
+
+    @classmethod
     def build_optimizer(cls, cfg, model):
         """
         Returns:
@@ -178,6 +189,17 @@ class DefaultTrainer:
         """
         max_iter = cfg.SOLVER.MAX_ITER
         return EventWriter(max_iter=max_iter)
+
+    @classmethod
+    def test(cls, cfg, model):
+        logger = logging.getLogger(__name__)
+        data_loader = cls.build_test_loader(cfg)
+        results = inference(model, data_loader)
+
+        logger.info("Evaluation results:")
+        logger.info("MSE : {:.4f}".format(results['MSE']))
+        logger.info("PSNR: {:.2f}".format(results['PSNR']))
+        return results
 
     def state_dict(self):
         ret = {

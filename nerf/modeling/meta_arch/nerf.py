@@ -28,7 +28,7 @@ class NeRF(nn.Module):
 
     def __init__(self, nerf_mlp, embedder, points_sampler, render, 
                  num_samples, num_samples_fine, nerf_mlp_fine=None, raw_noise_std=0.,
-                 device='cuda',):
+                 test_mini_batch=16384, device='cuda',):
         super().__init__()
         self.nerf_mlp = nerf_mlp
         self.nerf_mlp_fine = nerf_mlp_fine
@@ -39,6 +39,7 @@ class NeRF(nn.Module):
         self.num_samples = num_samples
         self.num_samples_fine = num_samples_fine
         self.raw_noise_std = raw_noise_std
+        self.test_mini_batch = test_mini_batch
         self._device = device
 
     @property
@@ -94,13 +95,40 @@ class NeRF(nn.Module):
         # rendering
         rgb, weights = self.render(outputs, pts, output_weight=coarse_stage, 
             raw_noise_std=self.raw_noise_std)
-        # caculate loss
-        losses = {loss_name: self.loss(rgb, batched_targets)}
 
-        return losses, weights
+        if self.training:
+            # caculate loss
+            losses = {loss_name: self.loss(rgb, batched_targets)}
+            return losses, weights
+        else:
+            return rgb, weights
 
-    def inference(self):
+    def inference(self, batched_inputs):
         assert not self.training
+
+        batched_rays = batched_inputs["batched_rays"]
+        use_viewdirs = batched_rays.shape[-1] > 8
+        rgb = []
+
+        """Render rays in smaller minibatches to avoid OOM."""
+        for i in range(0, batched_rays.shape[0], self.test_mini_batch):
+            mini_batched_rays = batched_rays[i:i+self.test_mini_batch]
+
+            # coarse stage
+            points, point_sampling_fine = self.points_sampler(mini_batched_rays, self.num_samples)
+            rgb_mini, weights = self._forward(
+                points, mini_batched_rays, None, use_viewdirs, coarse_stage=True)
+
+            # fine stage 
+            if self.nerf_mlp_fine:
+                points_fine = point_sampling_fine(weights, self.num_samples_fine)
+
+                rgb_mini, _ = self._forward(
+                    points_fine, mini_batched_rays, None, use_viewdirs, coarse_stage=False)
+            rgb.append(rgb_mini)
+        
+        rgb = torch.cat(rgb, dim=0)
+        return {"rgb": rgb}
 
     def loss(self, preds, targets):
         return F.mse_loss(preds, targets, reduction='mean')

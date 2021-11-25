@@ -2,13 +2,48 @@ import torch
 import numpy as np
 
 from ..utils import get_rays
-from .data_sampler import TrainingSampler
+from .data_sampler import TrainingSampler, InferenceSampler
 
-__all__ = ["DataLoaderTrain", ]
+__all__ = ["DataLoaderTrain", "DataLoaderTest", ]
+
+
+def get_rays_rgb(images, poses, hwf, use_pixel_batching):
+    H, W, focal = hwf
+    # [N, ro+rb, H, W, 3]
+    rays = torch.stack(
+        [get_rays(H, W, focal, p) for p in poses[:, :3, :4]], dim=0
+    )
+    # [N, ro+rb+rgb, H, W, 3]
+    rays_rgb = torch.cat([rays, images[:, None]], dim=1)
+    # [N, H, W, ro+rb+rgb, 3]
+    rays_rgb = rays_rgb.permute(0, 2, 3, 1, 4)
+
+    if use_pixel_batching:
+        # [N*H*W, ro+rb+rgb, 3]
+        rays_rgb = rays_rgb.reshape(-1, 3, 3)
+    else:
+        # [N, H*W, ro+rb+rgb, 3]
+        rays_rgb = rays_rgb.reshape(-1, H*W, 3, 3)
+    return rays_rgb
+
+
+def creat_ray_batch(rays_o, rays_d, near, far, ues_viewdirs):
+    near = near * torch.ones_like(rays_d[:, :1])
+    far = far * torch.ones_like(rays_d[:, :1])
+
+    rays = torch.cat([rays_o, rays_d, near, far], dim=-1)
+
+    if ues_viewdirs:
+        viewdirs = rays_d
+        viewdirs = viewdirs / torch.linalg.norm(viewdirs, axis=-1, keepdims=True)
+        rays = torch.cat([rays, viewdirs], dim=-1)
+    
+    return rays
 
 
 class DataLoaderTrain:
-    def __init__(self, images, poses, hwf, near, far, use_pixel_batching, ues_viewdirs, batch_size, sampler=None) -> None:
+    def __init__(self, images, poses, hwf, near, far, use_pixel_batching, ues_viewdirs, 
+                 batch_size, sampler=None) -> None:
         """
         Args:
             images (tensor): Images sized [N, H, W, 3].
@@ -23,7 +58,7 @@ class DataLoaderTrain:
                 samples from the dataset.
         """
 
-        self.rays_rgb = self.get_rays_rgb(images, poses, hwf, use_pixel_batching)
+        self.rays_rgb = get_rays_rgb(images, poses, hwf, use_pixel_batching)
         self.bs = batch_size
         self.near = near
         self.far = far
@@ -35,25 +70,6 @@ class DataLoaderTrain:
         if sampler == None:
             sampler = TrainingSampler(self.len_)
         self.sampler = iter(sampler)
-
-    def get_rays_rgb(self, images, poses, hwf, use_pixel_batching):
-        H, W, focal = hwf
-        # [N, ro+rb, H, W, 3]
-        rays = torch.stack(
-            [get_rays(H, W, focal, p) for p in poses[:, :3, :4]], dim=0
-        )
-        # [N, ro+rb+rgb, H, W, 3]
-        rays_rgb = torch.cat([rays, images[:, None]], dim=1)
-        # [N, H, W, ro+rb+rgb, 3]
-        rays_rgb = rays_rgb.permute(0, 2, 3, 1, 4)
-
-        if use_pixel_batching:
-            # [N*H*W, ro+rb+rgb, 3]
-            rays_rgb = rays_rgb.reshape(-1, 3, 3)
-        else:
-            # [N, H*W, ro+rb+rgb, 3]
-            rays_rgb = rays_rgb.reshape(-1, H*W, 3, 3)
-        return rays_rgb
 
     def __len__(self):
         return self.len_
@@ -74,21 +90,52 @@ class DataLoaderTrain:
             batch = batch[select_inds]
 
         rays_o, rays_d, targets = batch[:, 0], batch[:, 1], batch[:, 2]
-        rays = self.creat_ray_batch(rays_o, rays_d)
+        rays = creat_ray_batch(rays_o, rays_d, self.near, self.far, self.ues_viewdirs)
         return {
-            "batched_rays": rays,
-            "batched_targets": targets,
+            "batched_rays": rays,  # [bs, 8 or 11]
+            "batched_targets": targets,  # [bs, 3]
         }
 
-    def creat_ray_batch(self, rays_o, rays_d):
-        near = self.near * torch.ones_like(rays_d[:, :1])
-        far = self.far * torch.ones_like(rays_d[:, :1])
 
-        rays = torch.cat([rays_o, rays_d, near, far], dim=-1)
+class DataLoaderTest:
+    def __init__(self, images, poses, hwf, near, far, ues_viewdirs, 
+                 sampler=None) -> None:
+        """
+        Args:
+            images (tensor): Images sized [N, H, W, 3].
+            poses (tensor): Camera poses sized [N, 4, 4].
+            hwf (list): Height, width and focal respectively.
+            near (float): 
+            far (float):
+            ues_viewdirs (bool): If True, use viewing direction of a point in space in model.
+            sampler (Sampler or Iterable, optional): Defines the strategy to draw
+                samples from the dataset.
+        """
 
-        if self.ues_viewdirs:
-            viewdirs = rays_d
-            viewdirs = viewdirs / torch.linalg.norm(viewdirs, axis=-1, keepdims=True)
-            rays = torch.cat([rays, viewdirs], dim=-1)
-        
-        return rays
+        self.rays_rgb = get_rays_rgb(images, poses, hwf, use_pixel_batching=False)
+        self.near = near
+        self.far = far
+        self.ues_viewdirs = ues_viewdirs
+
+        self.len_ = self.rays_rgb.shape[0]
+
+        if sampler == None:
+            sampler = InferenceSampler(self.len_)
+        self.sampler = iter(sampler)
+
+    def __len__(self):
+        return self.len_
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        ind = next(self.sampler)
+        batch = self.rays_rgb[ind]
+
+        rays_o, rays_d, targets = batch[:, 0], batch[:, 1], batch[:, 2]
+        rays = creat_ray_batch(rays_o, rays_d, self.near, self.far, self.ues_viewdirs)
+        return {
+            "batched_rays": rays,  # [bs, 8 or 11]
+            "batched_targets": targets,  # [bs, 3]
+        }

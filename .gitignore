@@ -46,4 +46,8 @@ logs/
 
 # debug
 debug.py
-debug.yaml
+test.py
+run.sh
+
+# yaml
+*.yaml

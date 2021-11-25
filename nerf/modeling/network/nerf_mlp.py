@@ -22,7 +22,7 @@ class NerfMlp(nn.Module):
         out_dim = middle_dim
         self.fcs = []
         for i in range(num_layers):
-            if i in skips:
+            if i - 1 in skips:
                 in_dim += position_dim
             
             fc = Linear(in_dim, out_dim, activation=nn.ReLU())
@@ -68,7 +68,7 @@ class NerfMlp(nn.Module):
         """
         output = position
         for i, fc in enumerate(self.fcs):
-            if i in self.skips:
+            if i - 1 in self.skips:
                 output = torch.cat((output, position), dim=-1)
             output = fc(output)
         
@@ -91,6 +91,10 @@ def build_nerf_mlp(cfg):
     direction_dim = cfg.MODEL.MLP.DIRECTION_DIM
     middle_dim = cfg.MODEL.MLP.MIDDEL_DIM
     use_viewdirs = cfg.DATASET.USE_VIEWDIRS
+
+    if cfg.MODEL.MLP.INCLUDE_INPUT:
+        position_dim += 3
+        direction_dim += 3
 
     nerfmlp = NerfMlp(num_layers, skips, position_dim, direction_dim, 
                       middle_dim, use_viewdirs)
