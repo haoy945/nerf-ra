@@ -3,7 +3,7 @@ import torch
 __all__ = ["build_render", ]
 
 
-def _renderRays(sigma, dists, rgb, output_weight=False):
+def _renderRays(sigma, dists, rgb, output_weight=False, white_bkgd=False):
     """
     Args:
         sigma (tensor): volume density with the shape (num_rays, num_points).
@@ -24,6 +24,9 @@ def _renderRays(sigma, dists, rgb, output_weight=False):
     )
 
     rgb = torch.sum(weight[..., None].clone() * rgb, dim=-2)
+    if white_bkgd:
+        acc_map = torch.sum(weight, dim=-1)
+        rgb = rgb + (1. - acc_map[..., None].clone())
     
     if output_weight:
         return rgb, weight
@@ -31,7 +34,7 @@ def _renderRays(sigma, dists, rgb, output_weight=False):
         return rgb, None
 
 
-def renderRays(raw, pts, output_weight=False, raw_noise_std=0.):
+def renderRays(raw, pts, output_weight=False, raw_noise_std=0., white_bkgd=False):
     """
     Args:
         raw (tensor): Batch of raw outputs of MLP sized (num_rays, num_points, 4),
@@ -55,7 +58,7 @@ def renderRays(raw, pts, output_weight=False, raw_noise_std=0.):
     noise = torch.rand_like(sigma, device=sigma.device) * raw_noise_std
     sigma = torch.nn.functional.relu(sigma + noise)
 
-    return _renderRays(sigma, dists, rgb, output_weight)
+    return _renderRays(sigma, dists, rgb, output_weight, white_bkgd)
 
 
 def build_render(cfg):

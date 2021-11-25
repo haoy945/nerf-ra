@@ -27,8 +27,8 @@ class NeRF(nn.Module):
     """
 
     def __init__(self, nerf_mlp, embedder, points_sampler, render, 
-                 num_samples, num_samples_fine, nerf_mlp_fine=None, raw_noise_std=0.,
-                 test_mini_batch=16384, device='cuda',):
+                 num_samples, num_samples_fine=0, nerf_mlp_fine=None, raw_noise_std=0.,
+                 test_mini_batch=16384, device='cuda', white_bkgd=False):
         super().__init__()
         self.nerf_mlp = nerf_mlp
         self.nerf_mlp_fine = nerf_mlp_fine
@@ -40,6 +40,7 @@ class NeRF(nn.Module):
         self.num_samples_fine = num_samples_fine
         self.raw_noise_std = raw_noise_std
         self.test_mini_batch = test_mini_batch
+        self.white_bkgd = white_bkgd
         self._device = device
 
     @property
@@ -94,7 +95,7 @@ class NeRF(nn.Module):
         outputs = mlp(pos_embed, dir_embed)
         # rendering
         rgb, weights = self.render(outputs, pts, output_weight=coarse_stage, 
-            raw_noise_std=self.raw_noise_std)
+            raw_noise_std=self.raw_noise_std, white_bkgd=self.white_bkgd)
 
         if self.training:
             # caculate loss
@@ -143,10 +144,18 @@ def build_meta_arch(cfg):
     num_samples = cfg.MODEL.NUM_SAMPLES
     num_samples_fine = cfg.MODEL.NUM_SAMPLES_FINE
     raw_noise_std = cfg.MODEL.RENDER.RAW_NOISE_STD
+    white_bkgd = cfg.DATASET.WHITE_BACKGROUND
+    test_mini_batch = cfg.TEST.TEST_MINI_BATCH
 
     nerf_mlp_fine = build_nerf_mlp(cfg) if num_samples_fine > 0 else None
 
-    model = NeRF(nerf_mlp, embedder, points_sampler, render, num_samples, 
-                 num_samples_fine, nerf_mlp_fine, raw_noise_std)
+    model = NeRF(
+        nerf_mlp, embedder, points_sampler, render, num_samples, 
+        num_samples_fine=num_samples_fine, 
+        nerf_mlp_fine=nerf_mlp_fine, 
+        raw_noise_std=raw_noise_std, 
+        white_bkgd=white_bkgd,
+        test_mini_batch=test_mini_batch,
+    )
     model.to(torch.device(cfg.MODEL.DEVICE))
     return model

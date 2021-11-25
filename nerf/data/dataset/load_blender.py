@@ -73,12 +73,10 @@ def load_blender_data(basedir, split='train', half_res=False, skip=1, white_bkgd
     return torch.tensor(imgs, dtype=torch.float32), torch.tensor(poses), [H, W, focal], near, far    
 
 
-def build_blender_data(cfg, split):
+def build_blender_data(cfg, split, skip, half_res):
     data_root = cfg.DATASET.ROOT_PATH
     datadir = cfg.DATASET.DATADIR
     datadir = os.path.join(data_root, datadir)
-    half_res = cfg.DATASET.HALF_RES
-    skip = cfg.DATASET.SKIP
     white_bkgd = cfg.DATASET.WHITE_BACKGROUND
 
     return load_blender_data(datadir, split, half_res, skip, white_bkgd)

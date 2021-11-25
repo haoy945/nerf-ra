@@ -10,9 +10,12 @@ def build_train_loader(cfg):
     ues_viewdirs = cfg.DATASET.USE_VIEWDIRS
     batch_size = cfg.SOLVER.BATCH_SIZE
     split = cfg.DATASET.TRAIN
+    skip = 1
+    half_res = cfg.DATASET.HALF_RES
 
     if dataset == "blender":
-        imgs, poses, hwf, near, far = build_blender_data(cfg, split)
+        imgs, poses, hwf, near, far = build_blender_data(
+            cfg, split, skip, half_res)
     else:
         raise NotImplementedError
 
@@ -26,9 +29,12 @@ def build_test_loader(cfg):
     dataset = cfg.DATASET.TYPE
     ues_viewdirs = cfg.DATASET.USE_VIEWDIRS
     split = cfg.DATASET.TEST
+    skip = cfg.DATASET.SKIP
+    half_res = cfg.DATASET.HALF_RES
     
     if dataset == "blender":
-        imgs, poses, hwf, near, far = build_blender_data(cfg, split)
+        imgs, poses, hwf, near, far = build_blender_data(
+            cfg, split, skip, half_res)
     else:
         raise NotImplementedError
     
