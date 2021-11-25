@@ -1,7 +1,10 @@
+import os
 import math
 import logging
 import torch
 import torch.nn.functional as F
+
+from ..utils import visualize
 
 
 class DatasetEvaluator:
@@ -11,9 +14,11 @@ class DatasetEvaluator:
     This class will accumulate information of the inputs/outputs (by :meth:`process`),
     and produce evaluation results in the end (by :meth:`evaluate`).
     """
-    def __init__(self) -> None:
+    def __init__(self, cfg, iteration) -> None:
         self._logger = logging.getLogger(__name__)
         self._cpu_device = torch.device('cpu')
+        self._cfg = cfg
+        self.iter = iteration
 
         self._predictions = []
 
@@ -55,11 +60,21 @@ class DatasetEvaluator:
         self._logger.info("Evaluating predictions")
 
         mse = 0.
-        for prediction in self._predictions:
+        for i, prediction in enumerate(self._predictions):
             targets = prediction["targets"]
             preds = prediction["preds"]
 
             mse += F.mse_loss(preds, targets, reduction='mean')
+
+            if self._cfg.EVALUATION.VISUALIZE:
+                savedir = os.path.join(
+                    self._cfg.OUTPUT_DIR, self._cfg.VISUALIZE.SAVEDIR, 'iter_{:06d}'.format(self.iter)
+                )
+                filename = '{}_{:03d}.png'.format(self._cfg.DATASET.TEST, i)
+                visualize(preds, filename, savedir)
+                if self._cfg.VISUALIZE.VISUALIZE_GT:
+                    filename = '{}_{:03d}_gt.png'.format(self._cfg.DATASET.TEST, i)
+                    visualize(targets, filename, savedir)
         
         mse = mse / len(self._predictions)
         psnr = -10. * math.log10(mse)

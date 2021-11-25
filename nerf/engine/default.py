@@ -8,7 +8,7 @@ from ..modeling import build_meta_arch
 from ..data import build_train_loader, build_test_loader
 from ..solver import build_optimizer, build_lr_scheduler
 from ..utils import setup_logger, EventWriter
-from ..evaluation import inference
+from ..evaluation import inference, DatasetEvaluator
 
 __all__ = ["default_setup", "DefaultTrainer", ]
 
@@ -108,10 +108,10 @@ class DefaultTrainer:
             if (self.iter + 1) % 20 == 0 or (self.iter + 1) == self.max_iter:
                 self.writer.write(self.iter)
             if (self.iter + 1) % self.cfg.SOLVER.CHECKPOINT_PERIOD == 0 or (self.iter + 1) == self.max_iter:
-                save_file_name = "model_{}".format(self.iter)
+                save_file_name = "model_{:06d}".format(self.iter)
                 self.checkpointer.save(save_file_name)
             if (self.iter + 1) % self.cfg.TEST.EVAL_PERIOD == 0 or (self.iter + 1) == self.max_iter:
-                self.test(self.cfg, self.model)
+                self.test(self.cfg, self.model, self.iter)
 
     def run_step(self):
         start = time.perf_counter()
@@ -191,10 +191,11 @@ class DefaultTrainer:
         return EventWriter(max_iter=max_iter)
 
     @classmethod
-    def test(cls, cfg, model):
+    def test(cls, cfg, model, iteration):
         logger = logging.getLogger(__name__)
         data_loader = cls.build_test_loader(cfg)
-        results = inference(model, data_loader)
+        evaluator = DatasetEvaluator(cfg, iteration)
+        results = inference(model, data_loader, evaluator)
 
         logger.info("Evaluation results:")
         logger.info("MSE : {:.4f}".format(results['MSE']))

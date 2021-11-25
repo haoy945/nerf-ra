@@ -1,20 +1,18 @@
 import logging
 import torch
 
-from .evaluation import DatasetEvaluator
-
 __all__ = ["inference", ]
 
 
 @torch.no_grad()
-def inference(model, data_loader):
+def inference(model, data_loader, evaluator):
     logger = logging.getLogger(__name__)
     total = len(data_loader)
     logger.info("Start inference on {} images".format(total))
 
     training_mode = model.training
     model.eval()
-    evaluator = DatasetEvaluator()
+    evaluator.reset()
 
     for idx, inputs in enumerate(data_loader):
         outputs = model(inputs)

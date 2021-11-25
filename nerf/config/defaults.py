@@ -1,6 +1,8 @@
-from yacs.config import CfgNode as CN
+from fvcore.common.config import CfgNode as CN
 
 _C = CN()
+
+_C.OUTPUT_DIR = "./output"
 
 _C.MODEL = CN()
 _C.MODEL.DEVICE = "cuda"
@@ -37,7 +39,7 @@ _C.SOLVER.CHECKPOINT_PERIOD = 10000
 
 _C.DATASET = CN()
 _C.DATASET.TYPE = 'blender'
-_C.DATASET.USE_PIXEL_BATCHING = True
+_C.DATASET.USE_PIXEL_BATCHING = False
 _C.DATASET.USE_VIEWDIRS = True
 _C.DATASET.ROOT_PATH = ""
 _C.DATASET.DATADIR = "./nerf_synthetic/lego"
@@ -51,4 +53,9 @@ _C.TEST = CN()
 _C.TEST.EVAL_PERIOD = 10000
 _C.TEST.TEST_MINI_BATCH = 16384
 
-_C.OUTPUT_DIR = "./output"
+_C.EVALUATION = CN()
+_C.EVALUATION.VISUALIZE = False
+
+_C.VISUALIZE = CN()
+_C.VISUALIZE.SAVEDIR = ""
+_C.VISUALIZE.VISUALIZE_GT = False
