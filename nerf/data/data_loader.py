@@ -1,3 +1,4 @@
+import math
 import torch
 import numpy as np
 
@@ -43,7 +44,7 @@ def creat_ray_batch(rays_o, rays_d, near, far, ues_viewdirs):
 
 class DataLoaderTrain:
     def __init__(self, images, poses, hwf, near, far, use_pixel_batching, ues_viewdirs, 
-                 batch_size, sampler=None) -> None:
+                 batch_size, precrop_iters, precrop_frac, sampler=None) -> None:
         """
         Args:
             images (tensor): Images sized [N, H, W, 3].
@@ -54,6 +55,8 @@ class DataLoaderTrain:
             ues_viewdirs (bool): If True, use viewing direction of a point in space in model.
             use_pixel_batching (bool): Whether to sample pixels over all images.
             batch_size (int): How many samples per batch to load.
+            precrop_iters (int): number of steps to train on central crops.
+            precrop_frac (float): fraction of img taken for central crops.
             sampler (Sampler or Iterable, optional): Defines the strategy to draw
                 samples from the dataset.
         """
@@ -64,8 +67,11 @@ class DataLoaderTrain:
         self.far = far
         self.use_pixel_batching = use_pixel_batching
         self.ues_viewdirs = ues_viewdirs
+        self.precrop_iters = precrop_iters
+        self.precrop_frac = precrop_frac
 
         self.len_ = self.rays_rgb.shape[0]
+        self.iter_ = 0
 
         if sampler == None:
             sampler = TrainingSampler(self.len_)
@@ -83,9 +89,26 @@ class DataLoaderTrain:
             # [bs, ro+rb+rgb, 3]
             batch = self.rays_rgb[inds]
         else:
+            # [H*W, ro+rb+rgb, 3]
             batch = self.rays_rgb[next(self.sampler)]
-            select_inds = torch.tensor(np.random.choice(
-                batch.shape[0], size=self.bs, replace=False))
+
+            if self.iter_ < self.precrop_iters:
+                '''Center Cropping'''
+                H = W = int(math.sqrt(batch.shape[0]))
+                dH = int(H // 2 * self.precrop_frac)
+                dW = int(W // 2 * self.precrop_frac)
+                coords_x, coords_y = torch.meshgrid(
+                        torch.linspace(H//2 - dH, H//2 + dH - 1, 2*dH), 
+                        torch.linspace(W//2 - dW, W//2 + dW - 1, 2*dW), 
+                indexing='xy')
+                # 2d coords -> 1d coords
+                inds = torch.flatten(coords_y * W + coords_x, start_dim=0)
+                select_inds = inds[torch.tensor(np.random.choice(
+                    inds.shape[0], size=self.bs, replace=False))].long()
+                self.iter_ += 1
+            else:
+                select_inds = torch.tensor(np.random.choice(
+                    batch.shape[0], size=self.bs, replace=False))
             # [bs, ro+rb+rgb, 3]
             batch = batch[select_inds]
 

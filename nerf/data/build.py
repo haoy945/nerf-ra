@@ -12,6 +12,8 @@ def build_train_loader(cfg):
     split = cfg.DATASET.TRAIN
     skip = 1
     half_res = cfg.DATASET.HALF_RES
+    precrop_iters = cfg.DATASET.PRECROP_ITERS
+    precrop_frac = cfg.DATASET.PRECROP_FRAC
 
     if dataset == "blender":
         imgs, poses, hwf, near, far = build_blender_data(
@@ -20,8 +22,8 @@ def build_train_loader(cfg):
         raise NotImplementedError
 
     return DataLoaderTrain(
-        imgs, poses, hwf, near, far, 
-        use_pixel_batching, ues_viewdirs, batch_size,
+        imgs, poses, hwf, near, far, use_pixel_batching, 
+        ues_viewdirs, batch_size, precrop_iters, precrop_frac,
     )
 
 
