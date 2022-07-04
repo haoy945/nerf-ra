@@ -1,0 +1,59 @@
+OUTPUT_DIR: "../output/nerf-r/default"
+
+MODEL:
+  DEVICE: "cuda"
+  WEIGHTS: ""
+  NUM_SAMPLES: 64
+  NUM_SAMPLES_FINE: 64
+
+  EMBEDDER:
+    POSITION_DIM: 10
+    DIRECTION_DIM: 4
+
+  MLP:
+    NUM_LAYERS: 8
+    SKIPS: [4, ]
+    POSITION_DIM: 60
+    DIRECTION_DIM: 24
+    MIDDEL_DIM: 256
+    INCLUDE_INPUT: True
+
+  RENDER:
+    RAW_NOISE_STD: 0.0
+
+SOLVER:
+  BASE_LR: 5e-4
+  OPTIMIZER_NAME: "Adam"
+  BETAS: (0.9, 0.999)
+  EPS: 1e-7
+  LR_SCHEDULER_NAME: "ExponentialDecayLR"
+  DECAY_STEPS: 250000
+  DECAY_RATE: 0.1
+  BATCH_SIZE: 1024
+  MAX_ITER: 200000
+  CHECKPOINT_PERIOD: 20000
+
+DATASET:
+  TYPE: 'blender'
+  USE_PIXEL_BATCHING: False
+  USE_VIEWDIRS: True
+  ROOT_PATH: "/home/yanghao/data/NeRF"
+  DATADIR: "./nerf_synthetic/lego"
+  HALF_RES: True
+  SKIP: 20
+  TRAIN: 'train'
+  TEST: 'val'
+  WHITE_BACKGROUND: True
+  PRECROP_ITERS: 500
+  PRECROP_FRAC: 0.5
+
+TEST:
+  EVAL_PERIOD: 20000
+  TEST_MINI_BATCH: 16384
+
+EVALUATION:
+  VISUALIZE: True
+
+VISUALIZE:
+  SAVEDIR: "visualize/lego"
+  VISUALIZE_GT: True

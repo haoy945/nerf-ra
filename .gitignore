@@ -51,3 +51,4 @@ run.sh
 
 # yaml
 *.yaml
+!configs/default.yaml
